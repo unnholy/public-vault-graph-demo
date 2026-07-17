@@ -3,413 +3,281 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Hermes Vault Fleet Dashboard</title>
+  <title>Atlas Fleet: Vault Graph Workbench</title>
   <style>
     :root {
       color-scheme: dark;
-      font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      --bg: #070909;
-      --panel: #101414;
-      --panel-2: #151b1a;
-      --line: #263330;
-      --text: #e9eeea;
-      --muted: #8b9893;
-      --gold: #e6c56f;
+      --bg: #060808;
+      --panel: #0d1211;
+      --panel2: #121918;
+      --line: #26332f;
+      --text: #edf2ee;
+      --muted: #8d9a94;
+      --gold: #e6c66e;
       --green: #72c7aa;
-      --blue: #7da9ef;
-      --red: #ec7a7a;
-      --violet: #b299ff;
+      --blue: #79a9f2;
+      --red: #ed7d7d;
+      --violet: #b69cff;
+      --shadow: 0 24px 70px rgb(0 0 0 / 36%);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     }
     * { box-sizing: border-box; }
-    body { margin: 0; background: var(--bg); color: var(--text); }
-    button, input { font: inherit; }
-    .app { min-height: 100vh; display: grid; grid-template-columns: 250px minmax(0, 1fr) 340px; }
-    .sidebar, .inspector { background: var(--panel); border-color: var(--line); padding: 18px; }
-    .sidebar { border-right: 1px solid var(--line); }
+    body { margin: 0; min-height: 100vh; background: radial-gradient(circle at 22% 0%, #15201c 0, transparent 32%), var(--bg); color: var(--text); }
+    button, input, textarea, select { font: inherit; }
+    .shell { display: grid; grid-template-columns: 276px minmax(0, 1fr) 360px; min-height: 100vh; }
+    .rail, .inspector { background: color-mix(in srgb, var(--panel) 94%, black); border-color: var(--line); padding: 18px; }
+    .rail { border-right: 1px solid var(--line); }
     .inspector { border-left: 1px solid var(--line); }
-    .brand { display: grid; gap: 8px; margin-bottom: 20px; }
-    .brand h1 { margin: 0; color: var(--gold); font-size: 19px; }
-    .brand p, .inspector p, .card p { margin: 0; color: var(--muted); line-height: 1.5; }
-    .nav button, .filter button {
-      width: 100%;
-      margin: 4px 0;
-      padding: 9px 10px;
-      border: 1px solid transparent;
-      border-radius: 6px;
-      background: transparent;
-      color: var(--muted);
-      text-align: left;
+    .brand { margin-bottom: 18px; }
+    .brand h1 { margin: 0 0 6px; color: var(--gold); font-size: 20px; letter-spacing: .02em; }
+    .brand p, .muted { margin: 0; color: var(--muted); line-height: 1.45; }
+    .nav button, .pill, .toolbar button, .actions button {
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: #0b100f;
+      color: var(--text);
       cursor: pointer;
     }
-    .nav button.active, .filter button.active { border-color: var(--green); color: var(--green); background: #0e1816; }
+    .nav button { display: block; width: 100%; margin: 5px 0; padding: 10px; text-align: left; color: var(--muted); background: transparent; border-color: transparent; }
+    .nav button.active, .pill.active { color: var(--green); border-color: var(--green); background: #0d1815; }
+    .mini-title { margin: 20px 0 8px; color: #66736d; font-size: 11px; font-weight: 800; letter-spacing: .11em; text-transform: uppercase; }
+    .stat-stack { display: grid; gap: 8px; }
+    .stat { display: flex; justify-content: space-between; gap: 10px; padding: 9px 10px; border: 1px solid var(--line); border-radius: 7px; background: #0b100f; }
+    .stat strong { color: var(--gold); }
     main { min-width: 0; }
-    .topbar {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) 220px;
-      gap: 12px;
-      align-items: center;
-      padding: 14px 18px;
-      border-bottom: 1px solid var(--line);
-      background: #0b0f0f;
-    }
-    .topbar input {
-      width: 100%;
-      padding: 10px 12px;
-      border: 1px solid var(--line);
-      border-radius: 6px;
-      background: #070a0a;
-      color: var(--text);
-    }
-    .badge { color: var(--muted); font-size: 12px; text-align: right; }
+    .topbar { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 14px 18px; border-bottom: 1px solid var(--line); background: rgb(7 10 10 / 86%); }
+    .search { width: 100%; padding: 11px 12px; border: 1px solid var(--line); border-radius: 7px; background: #070a0a; color: var(--text); }
+    .toolbar { display: flex; gap: 8px; flex-wrap: wrap; }
+    .toolbar button, .actions button { padding: 9px 11px; }
     .view { display: none; padding: 18px; }
     .view.active { display: block; }
     .grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 12px; }
-    .card {
-      grid-column: span 4;
-      padding: 14px;
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      background: var(--panel-2);
-    }
+    .card { grid-column: span 4; padding: 15px; border: 1px solid var(--line); border-radius: 9px; background: linear-gradient(180deg, var(--panel2), #0d1312); box-shadow: var(--shadow); }
     .card.wide { grid-column: span 8; }
     .card.full { grid-column: 1 / -1; }
     .card h2, .card h3, .inspector h2 { margin: 0 0 10px; font-size: 15px; }
-    .metric { font-size: 28px; color: var(--gold); margin-bottom: 4px; }
-    .graph {
-      position: relative;
-      min-height: 560px;
-      overflow: hidden;
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      background:
-        linear-gradient(var(--line) 1px, transparent 1px),
-        linear-gradient(90deg, var(--line) 1px, transparent 1px),
-        #090d0d;
-      background-size: 42px 42px;
-    }
-    .edge {
-      position: absolute;
-      height: 1px;
-      transform-origin: 0 0;
-      background: #31423d;
-      opacity: .8;
-    }
-    .node {
-      position: absolute;
-      width: 128px;
-      min-height: 68px;
-      padding: 10px;
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      background: #101615;
-      box-shadow: 0 12px 30px rgb(0 0 0 / 28%);
-      color: var(--text);
-      text-align: left;
-      cursor: pointer;
-    }
-    .node strong { display: block; font-size: 12px; margin-bottom: 6px; }
+    .metric { font-size: 34px; color: var(--gold); line-height: 1; margin-bottom: 6px; }
+    .graph-wrap { position: relative; height: calc(100vh - 94px); min-height: 650px; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: linear-gradient(var(--line) 1px, transparent 1px), linear-gradient(90deg, var(--line) 1px, transparent 1px), #080c0b; background-size: 42px 42px; }
+    .edge { position: absolute; height: 1px; transform-origin: 0 0; background: #354a44; opacity: .85; }
+    .edge.hot { background: var(--gold); opacity: 1; height: 2px; }
+    .node { position: absolute; width: 138px; min-height: 76px; padding: 10px; border: 1px solid var(--line); border-radius: 9px; background: #101716; color: var(--text); text-align: left; box-shadow: 0 16px 40px rgb(0 0 0 / 30%); cursor: pointer; transition: transform .16s ease, border-color .16s ease; }
+    .node:hover { transform: translateY(-2px); }
+    .node strong { display: block; margin-bottom: 5px; font-size: 12px; }
     .node span { color: var(--muted); font-size: 11px; }
-    .node.frontdoor { border-color: var(--green); }
-    .node.command { border-color: var(--gold); }
-    .node.memory { border-color: var(--violet); }
-    .node.security { border-color: var(--red); }
-    .node.research { border-color: var(--blue); }
+    .node.agent { border-color: var(--blue); }
+    .node.hub { border-color: var(--gold); }
+    .node.tool { border-color: var(--green); }
+    .node.guard { border-color: var(--red); }
     .node.selected { outline: 2px solid white; }
+    .pill-row { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 10px; }
+    .pill { width: auto; padding: 6px 8px; color: var(--muted); }
+    textarea { width: 100%; min-height: 340px; padding: 12px; border: 1px solid var(--line); border-radius: 8px; background: #070a0a; color: var(--text); font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; resize: vertical; }
+    .actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+    .primary { border-color: var(--green) !important; color: var(--green) !important; }
     .table { width: 100%; border-collapse: collapse; font-size: 13px; }
     .table th, .table td { padding: 10px 8px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
-    .table th { color: var(--muted); font-weight: 600; }
-    .pipeline { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
-    .step { min-height: 120px; padding: 12px; border: 1px solid var(--line); border-radius: 8px; background: #0f1514; }
-    .step strong { display: block; margin-bottom: 8px; color: var(--gold); }
-    textarea {
-      width: 100%;
-      min-height: 260px;
-      padding: 12px;
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      background: #070a0a;
-      color: var(--text);
-      font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-      resize: vertical;
-    }
-    .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
-    .actions button {
-      width: auto;
-      padding: 9px 11px;
-      border: 1px solid var(--line);
-      border-radius: 6px;
-      background: #0f1514;
-      color: var(--text);
-      cursor: pointer;
-    }
-    .actions button.primary { border-color: var(--green); color: var(--green); }
+    .table th { color: var(--muted); }
+    .kanban { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
+    .lane { min-height: 390px; padding: 12px; border: 1px solid var(--line); border-radius: 9px; background: #0b1110; }
+    .lane h3 { margin: 0 0 10px; font-size: 13px; color: var(--gold); }
+    .ticket { margin-bottom: 9px; padding: 10px; border: 1px solid var(--line); border-radius: 8px; background: #121918; }
+    .ticket strong { display: block; margin-bottom: 5px; font-size: 12px; }
     .tag { display: inline-block; margin: 0 6px 6px 0; padding: 4px 7px; border: 1px solid var(--line); border-radius: 999px; color: var(--muted); font-size: 11px; }
     .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; color: var(--green); }
-    @media (max-width: 980px) {
-      .app { grid-template-columns: 1fr; }
-      .sidebar, .inspector { border: 0; border-bottom: 1px solid var(--line); }
-      .topbar { grid-template-columns: 1fr; }
-      .badge { text-align: left; }
+    .log { max-height: 260px; overflow: auto; padding: 10px; border: 1px solid var(--line); border-radius: 8px; background: #070a0a; font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color: var(--muted); }
+    @media (max-width: 1050px) {
+      .shell { grid-template-columns: 1fr; }
+      .rail, .inspector { border: 0; border-bottom: 1px solid var(--line); }
       .card, .card.wide { grid-column: 1 / -1; }
-      .pipeline { grid-template-columns: 1fr; }
+      .kanban { grid-template-columns: 1fr; }
+      .graph-wrap { height: 720px; }
     }
   </style>
 </head>
 <body>
-  <div class="app">
-    <aside class="sidebar">
+  <div class="shell">
+    <aside class="rail">
       <div class="brand">
-        <h1>Hermes Vault Fleet</h1>
-        <p>Public-safe dashboard for a private knowledge-vault and agent-routing architecture.</p>
+        <h1>Atlas Fleet</h1>
+        <p>Public-safe workbench for turning markdown vaults into agent routing maps.</p>
       </div>
       <nav class="nav">
         <button class="active" data-view="overview">Overview</button>
-        <button data-view="graph">Vault Graph</button>
-        <button data-view="parser">Vault Parser</button>
-        <button data-view="agents">Agent Fleet</button>
-        <button data-view="pipeline">Routing Pipeline</button>
-        <button data-view="safety">Safety Model</button>
+        <button data-view="graph">Live Graph</button>
+        <button data-view="parser">Markdown Parser</button>
+        <button data-view="queue">Approval Queue</button>
+        <button data-view="docs">Build Notes</button>
       </nav>
-      <div class="filter">
-        <p class="mono">Graph filter</p>
-        <button class="active" data-filter="all">All nodes</button>
-        <button data-filter="agent">Agents</button>
-        <button data-filter="hub">Hubs</button>
-        <button data-filter="tool">Tools</button>
+      <div class="mini-title">Session</div>
+      <div class="stat-stack">
+        <div class="stat"><span>Notes</span><strong id="statNotes">0</strong></div>
+        <div class="stat"><span>Links</span><strong id="statLinks">0</strong></div>
+        <div class="stat"><span>Tags</span><strong id="statTags">0</strong></div>
+        <div class="stat"><span>Layout</span><strong id="statLayout">cluster</strong></div>
       </div>
+      <div class="mini-title">Graph filters</div>
+      <div class="pill-row" id="filters"></div>
     </aside>
 
     <main>
       <div class="topbar">
-        <input id="search" placeholder="Search dashboard">
-        <div class="badge">sample data only / no private vault content</div>
+        <input class="search" id="search" placeholder="Search nodes, tags, routes, notes">
+        <div class="toolbar">
+          <button id="layoutCluster">Cluster</button>
+          <button id="layoutRing">Ring</button>
+          <button id="layoutColumns">Columns</button>
+          <button id="exportJson">Export JSON</button>
+        </div>
       </div>
 
       <section class="view active" id="overview">
         <div class="grid">
-          <div class="card">
-            <div class="metric">12</div>
-            <p>agent profiles modeled</p>
-          </div>
-          <div class="card">
-            <div class="metric">5</div>
-            <p>task pipeline stages</p>
-          </div>
-          <div class="card">
-            <div class="metric" id="parsedMetric">0</div>
-            <p>sample notes parsed</p>
-          </div>
-          <div class="card">
-            <div class="metric">0</div>
-            <p>private notes exposed</p>
-          </div>
+          <div class="card"><div class="metric">1</div><p>static app, no server required</p></div>
+          <div class="card"><div class="metric" id="overviewNotes">0</div><p>sample markdown notes parsed</p></div>
+          <div class="card"><div class="metric">0</div><p>private files uploaded</p></div>
           <div class="card wide">
-            <h2>What this project demonstrates</h2>
-            <p>A browser dashboard for understanding a private second-brain system: graph navigation, agent responsibilities, task routing, approval gates, and vault automation specs. The private vault stays private; the public version uses representative sample data.</p>
+            <h2>What it does</h2>
+            <p>Atlas Fleet parses a bundled sample markdown vault, extracts wiki links and tags, generates a graph, and maps the same notes into an agent-routing dashboard with approval gates and a work queue.</p>
           </div>
           <div class="card">
-            <h2>Built as</h2>
-            <p>One static HTML app with CSS and JavaScript. No backend, no login, no external data feed.</p>
+            <h2>Why it is public-safe</h2>
+            <p>The demo uses synthetic notes. It shows the architecture of a private AI workflow without exposing the private vault, credentials, account details, or personal records.</p>
           </div>
           <div class="card full">
-            <h2>Public build scope</h2>
+            <h2>Feature surface</h2>
             <table class="table">
-              <tr><th>Area</th><th>What is shown</th><th>What is stripped</th></tr>
-              <tr><td>Vault graph</td><td>Sample hubs, tools, agents, and project nodes</td><td>Real school, health, money, credentials, local paths</td></tr>
-              <tr><td>Agent fleet</td><td>Role architecture and routing responsibilities</td><td>Private instructions and personal content</td></tr>
-              <tr><td>Automation</td><td>Auto-sort, graph refresh, task handoff concepts</td><td>Live credentials, real server addresses, private messages</td></tr>
+              <tr><th>Feature</th><th>Implementation</th><th>Reviewer-visible result</th></tr>
+              <tr><td>Markdown parser</td><td>Extracts note blocks, <span class="mono">[[wiki links]]</span>, and <span class="mono">#tags</span></td><td>Graph and parsed table update from sample text</td></tr>
+              <tr><td>Graph workbench</td><td>DOM nodes, calculated edges, search, filters, inspector</td><td>Clickable graph with cluster/ring/column layouts</td></tr>
+              <tr><td>Agent routing</td><td>Tags map notes to agent roles and queue tickets</td><td>Approval queue shows how risky actions are gated</td></tr>
+              <tr><td>Export</td><td>JSON snapshot copied to clipboard when allowed</td><td>Project data can be carried into another tool</td></tr>
             </table>
           </div>
         </div>
       </section>
 
       <section class="view" id="graph">
-        <div class="graph" id="graphCanvas" aria-label="Interactive vault graph"></div>
+        <div class="graph-wrap" id="graphCanvas"></div>
       </section>
 
       <section class="view" id="parser">
         <div class="grid">
           <div class="card wide">
-            <h2>Sample markdown vault parser</h2>
-            <p>This reads sample notes, extracts wiki links like <span class="mono">[[Graph Viewer]]</span>, extracts tags like <span class="mono">#automation</span>, and rebuilds the graph from the parsed result.</p>
-            <textarea id="sampleVault"></textarea>
+            <h2>Sample markdown vault</h2>
+            <p class="muted">Edit the sample text, then parse. The app rebuilds the graph from the notes below.</p>
+            <textarea id="vaultInput"></textarea>
             <div class="actions">
-              <button class="primary" id="parseVault">Parse sample vault</button>
+              <button class="primary" id="parseVault">Parse vault</button>
               <button id="resetVault">Reset sample</button>
+              <button id="addSample">Add sample note</button>
             </div>
           </div>
           <div class="card">
-            <h2>Parser output</h2>
-            <p id="parserStats">No parse run yet.</p>
-            <div id="parserTags" style="margin-top:12px"></div>
+            <h2>Parser log</h2>
+            <div class="log" id="log"></div>
           </div>
           <div class="card full">
             <h2>Parsed notes</h2>
-            <table class="table" id="parsedTable">
-              <tr><th>Note</th><th>Links</th><th>Tags</th></tr>
-            </table>
+            <table class="table" id="noteTable"></table>
           </div>
         </div>
       </section>
 
-      <section class="view" id="agents">
-        <div class="grid" id="agentGrid"></div>
+      <section class="view" id="queue">
+        <div class="kanban" id="queueBoard"></div>
       </section>
 
-      <section class="view" id="pipeline">
-        <div class="pipeline">
-          <div class="step"><strong>1. Capture</strong><p>New request, note, link, or task enters the inbox/front-door agent.</p></div>
-          <div class="step"><strong>2. Triage</strong><p>Classify the work, identify owner, risk, and missing context.</p></div>
-          <div class="step"><strong>3. Dispatch</strong><p>Create linked tasks for specialist agents with clear dependencies.</p></div>
-          <div class="step"><strong>4. Review Gate</strong><p>Block sensitive actions until the human approves the exact next step.</p></div>
-          <div class="step"><strong>5. Archive</strong><p>Write summary, links, receipts, and next actions back into the vault.</p></div>
-        </div>
-      </section>
-
-      <section class="view" id="safety">
+      <section class="view" id="docs">
         <div class="grid">
           <div class="card wide">
-            <h2>Approval bands</h2>
+            <h2>Architecture</h2>
+            <p>Capture notes enter the vault, the parser turns links into graph edges, the graph exposes hubs and owners, and the queue marks which actions can run automatically versus which require approval.</p>
+          </div>
+          <div class="card">
+            <h2>Privacy</h2>
+            <p>Private content is replaced with sample data. The app does not fetch external data, does not require accounts, and stores nothing remotely.</p>
+          </div>
+          <div class="card full">
+            <h2>Build decisions</h2>
             <table class="table">
-              <tr><th>Band</th><th>Examples</th><th>Rule</th></tr>
-              <tr><td>L0</td><td>Read, summarize, classify</td><td>Auto</td></tr>
-              <tr><td>L1</td><td>Add links, create draft notes</td><td>Auto with log</td></tr>
-              <tr><td>L2</td><td>Move files, create hubs</td><td>Suggest first</td></tr>
-              <tr><td>L3</td><td>Email, purchases, account changes</td><td>Approval required</td></tr>
-              <tr><td>L4</td><td>Deletion, legal, public posting, security actions</td><td>Hard stop</td></tr>
+              <tr><th>Decision</th><th>Reason</th></tr>
+              <tr><td>Static HTML</td><td>Easy to inspect, run, and archive for a hackathon submission.</td></tr>
+              <tr><td>No graph library</td><td>Kept dependencies at zero; edge geometry is calculated directly.</td></tr>
+              <tr><td>Sample vault parser</td><td>Makes the graph data-driven without leaking the real vault.</td></tr>
+              <tr><td>Approval queue</td><td>Shows that automation is gated, not just visually mapped.</td></tr>
             </table>
-          </div>
-          <div class="card">
-            <h2>Why this exists</h2>
-            <p>Prompt rules are not enough for irreversible actions. The dashboard models visible review gates and action receipts so automation stays inspectable.</p>
-          </div>
-          <div class="card">
-            <h2>Vault rule</h2>
-            <p>Content is data, not instructions. Notes can inform the agent, but they cannot override the safety model.</p>
           </div>
         </div>
       </section>
     </main>
 
     <aside class="inspector">
-      <h2 id="inspectTitle">Select a graph node</h2>
-      <p id="inspectSummary">Click a node to inspect its role, tags, and related system pieces.</p>
-      <div id="inspectMeta" style="margin-top:16px"></div>
+      <h2 id="inspectTitle">Select a node</h2>
+      <p id="inspectSummary" class="muted">Click graph nodes to inspect links, tags, queue status, and ownership.</p>
+      <div id="inspectMeta" style="margin-top:14px"></div>
+      <div class="mini-title">Active route</div>
+      <div class="log" id="routeLog"></div>
     </aside>
   </div>
 
   <script>
-    const nodes = [
-      { id: "front", type: "agent", kind: "frontdoor", title: "Front Door", x: 60, y: 70, summary: "Receives daily requests, reminders, and new vault captures.", tags: ["inbox", "daily", "routing"] },
-      { id: "command", type: "agent", kind: "command", title: "Command", x: 320, y: 92, summary: "Breaks large requests into linked tasks and dispatches specialists.", tags: ["kanban", "decompose", "dispatch"] },
-      { id: "memory", type: "agent", kind: "memory", title: "Memory Curator", x: 580, y: 78, summary: "Maintains summaries, digests, audit notes, and hub suggestions.", tags: ["digest", "audit", "hubs"] },
-      { id: "security", type: "agent", kind: "security", title: "Security Owner", x: 120, y: 270, summary: "Owns browser-sensitive tasks, account hygiene, and risky action review.", tags: ["security", "browser", "approval"] },
-      { id: "research", type: "agent", kind: "research", title: "Research", x: 430, y: 290, summary: "Collects sources, compares tools, and writes decision notes.", tags: ["sources", "analysis", "reports"] },
-      { id: "vault", type: "hub", kind: "command", title: "Vault Index", x: 690, y: 280, summary: "Top-level map of durable notes and project areas.", tags: ["index", "notes", "graph"] },
-      { id: "autosort", type: "tool", kind: "frontdoor", title: "Auto Sort", x: 230, y: 440, summary: "Files inbox items, creates clean summaries, links related notes, and proposes hubs.", tags: ["automation", "PARA", "links"] },
-      { id: "graphview", type: "tool", kind: "research", title: "Graph Viewer", x: 520, y: 455, summary: "Visualizes hubs and agent-owned project areas with clickable nodes.", tags: ["visualization", "dashboard", "offline"] }
-    ];
-    const edges = [["front","command"],["command","memory"],["command","security"],["command","research"],["memory","vault"],["front","autosort"],["autosort","vault"],["vault","graphview"],["research","graphview"],["security","memory"]];
-    const agents = [
-      ["Front Door", "Daily requests, reminders, intake, and handoff."],
-      ["Command", "Task decomposition, specialist dispatch, dependency chains."],
-      ["Memory Curator", "Digest, critique, audit log, and hub proposals."],
-      ["Security Owner", "Risky browser/account actions and approval gates."],
-      ["Research", "Source-backed research and tool comparisons."],
-      ["Builder", "Small prototypes, dashboards, and automation scripts."],
-      ["Money/Records", "Subscriptions, contracts, receipts, and spending review."],
-      ["Content", "Drafts, captions, hooks, and posting plans."],
-      ["Fixer", "Stuck, ownerless, or cross-domain work."],
-      ["Reserved Profiles", "Future roles kept inactive until a real need exists."]
-    ];
-    const sampleVaultSeed = `--- note: Vault Home ---
-#index #memory
-The top-level map for [[Fleet Routing]], [[Graph Viewer]], and [[Auto Sort]].
+    const sampleSeed = `--- note: Vault Home ---
+#hub #memory
+The launch point for [[Graph Viewer]], [[Auto Sort]], [[Fleet Routing]], and [[Approval Queue]].
 
 --- note: Fleet Routing ---
-#kanban #agents
-Routes requests from [[Front Door]] to [[Command]] and specialist profiles.
+#agent #kanban
+Routes captured requests from [[Front Door]] to [[Command]] and specialized agents. Blocks risky work through [[Approval Queue]].
 
 --- note: Front Door ---
-#inbox #daily
-Captures reminders, links, drafts, and new notes before sending them to [[Fleet Routing]].
+#agent #capture
+Receives daily notes, links, reminders, and drafts. Sends complex work to [[Fleet Routing]].
 
 --- note: Command ---
-#dispatch #planning
-Breaks large work into [[Routing Pipeline]] tasks and checks with [[Safety Model]] before risky actions.
+#agent #planning
+Breaks large requests into linked tasks. Coordinates [[Research Desk]], [[Builder Desk]], and [[Security Desk]].
 
 --- note: Graph Viewer ---
-#visualization #frontend
-Reads the [[Vault Home]] map and renders clickable nodes for [[Auto Sort]] and [[Memory Curator]].
+#tool #visualization
+Renders a clickable map from parsed vault notes. Reads links from [[Vault Home]] and [[Auto Sort]].
 
 --- note: Auto Sort ---
-#automation #notes
-Files inbox notes, adds backlinks to [[Vault Home]], and proposes hubs for [[Memory Curator]].
+#tool #automation
+Files inbox notes, adds backlinks, proposes hubs, and reports changes to [[Memory Curator]].
 
 --- note: Memory Curator ---
-#audit #digest
-Maintains summaries, approval logs, and cleanup notes for [[Safety Model]].
+#agent #audit
+Maintains summaries, digest notes, action receipts, and cleanup suggestions for [[Approval Queue]].
 
---- note: Safety Model ---
-#approval #privacy
-Defines what can run automatically and what must stop for human approval.`;
-    let graphNodes = nodes;
-    let graphEdges = edges;
-    const graph = document.querySelector("#graphCanvas");
-    const search = document.querySelector("#search");
-    const inspectTitle = document.querySelector("#inspectTitle");
-    const inspectSummary = document.querySelector("#inspectSummary");
-    const inspectMeta = document.querySelector("#inspectMeta");
-    const sampleVault = document.querySelector("#sampleVault");
-    const parsedTable = document.querySelector("#parsedTable");
-    const parserStats = document.querySelector("#parserStats");
-    const parserTags = document.querySelector("#parserTags");
-    const parsedMetric = document.querySelector("#parsedMetric");
+--- note: Research Desk ---
+#agent #research
+Compares tools, checks sources, and writes decision notes for [[Command]].
+
+--- note: Builder Desk ---
+#agent #build
+Builds prototypes, dashboards, parser scripts, and single-file demos for [[Graph Viewer]].
+
+--- note: Security Desk ---
+#guard #security
+Reviews account, browser, deletion, and public-posting actions before [[Approval Queue]] can release them.
+
+--- note: Approval Queue ---
+#guard #approval
+Separates automatic actions from review-required actions. Connected to [[Command]], [[Security Desk]], and [[Memory Curator]].
+
+--- note: Public Demo ---
+#tool #privacy
+Uses representative sample notes so [[Graph Viewer]] can be public without exposing the private vault.`;
+
+    let notes = [];
+    let edges = [];
+    let selected = "";
     let filter = "all";
-    let selected = "front";
-
-    function matches(item) {
-      const q = search.value.trim().toLowerCase();
-      return (!q || `${item.title} ${item.summary} ${item.tags?.join(" ") || ""}`.toLowerCase().includes(q)) && (filter === "all" || item.type === filter);
-    }
-
-    function renderGraph() {
-      graph.innerHTML = "";
-      const visible = graphNodes.filter(matches);
-      const ids = new Set(visible.map(node => node.id));
-      graphEdges.filter(([a,b]) => ids.has(a) && ids.has(b)).forEach(([a,b]) => {
-        const from = graphNodes.find(node => node.id === a);
-        const to = graphNodes.find(node => node.id === b);
-        const x1 = from.x + 64, y1 = from.y + 34, x2 = to.x + 64, y2 = to.y + 34;
-        const dx = x2 - x1, dy = y2 - y1;
-        const edge = document.createElement("div");
-        edge.className = "edge";
-        edge.style.left = `${x1}px`;
-        edge.style.top = `${y1}px`;
-        edge.style.width = `${Math.hypot(dx, dy)}px`;
-        edge.style.transform = `rotate(${Math.atan2(dy, dx)}rad)`;
-        graph.appendChild(edge);
-      });
-      visible.forEach(node => {
-        const button = document.createElement("button");
-        button.className = `node ${node.kind}${selected === node.id ? " selected" : ""}`;
-        button.style.left = `${node.x}px`;
-        button.style.top = `${node.y}px`;
-        button.innerHTML = `<strong>${node.title}</strong><span>${node.type}</span>`;
-        button.onclick = () => select(node.id);
-        graph.appendChild(button);
-      });
-    }
-
-    function select(id) {
-      const node = graphNodes.find(item => item.id === id);
-      if (!node) return;
-      selected = id;
-      inspectTitle.textContent = node.title;
-      inspectSummary.textContent = node.summary;
-      inspectMeta.innerHTML = `${node.tags.map(tag => `<span class="tag">${tag}</span>`).join("")}<p class="mono">type: ${node.type}</p>`;
-      renderGraph();
-    }
+    let layout = "cluster";
+    const graph = document.querySelector("#graphCanvas");
+    const vaultInput = document.querySelector("#vaultInput");
+    const log = document.querySelector("#log");
+    const routeLog = document.querySelector("#routeLog");
 
     function slug(text) {
       return text.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
@@ -417,33 +285,146 @@ Defines what can run automatically and what must stop for human approval.`;
 
     function parseVault(text) {
       const blocks = text.split(/\n--- note:\s*/).map(block => block.trim()).filter(Boolean);
-      const parsed = blocks.map((block, index) => {
+      notes = blocks.map((block, index) => {
         const lines = block.split("\n");
-        const rawTitle = lines.shift().replace(/---$/, "").trim();
+        const title = lines.shift().replace(/---$/, "").trim();
         const body = lines.join("\n");
         const links = Array.from(body.matchAll(/\[\[([^\]]+)\]\]/g)).map(match => match[1].trim());
         const tags = Array.from(body.matchAll(/#([a-z0-9_-]+)/gi)).map(match => match[1].toLowerCase());
-        return { title: rawTitle, body, links, tags, index };
+        return { id: slug(title), title, body, links, tags, index, kind: pickKind(tags) };
       });
-      const titleToId = new Map(parsed.map(note => [note.title.toLowerCase(), slug(note.title)]));
-      const kinds = ["frontdoor", "command", "memory", "security", "research"];
-      graphNodes = parsed.map((note, index) => ({
-        id: slug(note.title),
-        type: note.tags.includes("agents") || note.tags.includes("daily") || note.tags.includes("dispatch") ? "agent" : note.tags.includes("automation") || note.tags.includes("frontend") ? "tool" : "hub",
-        kind: kinds[index % kinds.length],
-        title: note.title,
-        x: 60 + (index % 4) * 190,
-        y: 60 + Math.floor(index / 4) * 190,
-        summary: note.body.replace(/\[\[|\]\]|#[a-z0-9_-]+/gi, "").replace(/\s+/g, " ").trim().slice(0, 150) || "Parsed sample note.",
-        tags: note.tags.length ? note.tags : ["sample"]
+      const byTitle = new Map(notes.map(note => [note.title.toLowerCase(), note.id]));
+      edges = notes.flatMap(note => note.links.map(link => [note.id, byTitle.get(link.toLowerCase())]).filter(edge => edge[1]));
+      selected = notes[0]?.id || "";
+      writeLog(`parsed ${notes.length} notes / ${edges.length} links / ${uniqueTags().length} tags`);
+      renderEverything();
+    }
+
+    function pickKind(tags) {
+      if (tags.includes("guard") || tags.includes("approval") || tags.includes("security")) return "guard";
+      if (tags.includes("tool") || tags.includes("automation") || tags.includes("visualization")) return "tool";
+      if (tags.includes("agent") || tags.includes("research") || tags.includes("build")) return "agent";
+      return "hub";
+    }
+
+    function uniqueTags() {
+      return Array.from(new Set(notes.flatMap(note => note.tags))).sort();
+    }
+
+    function positions() {
+      const center = { x: 420, y: 300 };
+      return Object.fromEntries(notes.map((note, index) => {
+        if (layout === "ring") {
+          const angle = (Math.PI * 2 * index) / Math.max(notes.length, 1);
+          return [note.id, { x: center.x + Math.cos(angle) * 300, y: center.y + Math.sin(angle) * 230 }];
+        }
+        if (layout === "columns") {
+          const lane = ["hub", "agent", "tool", "guard"].indexOf(note.kind);
+          return [note.id, { x: 40 + Math.max(lane, 0) * 220, y: 45 + (index % 4) * 145 }];
+        }
+        const hubPull = note.kind === "hub" ? 0 : 1;
+        return [note.id, { x: 70 + (index % 4) * 210 + hubPull * 25, y: 55 + Math.floor(index / 4) * 170 }];
       }));
-      graphEdges = parsed.flatMap(note => note.links.map(link => [slug(note.title), titleToId.get(link.toLowerCase())]).filter(edge => edge[1]));
-      selected = graphNodes[0]?.id || "";
-      parsedMetric.textContent = String(parsed.length);
-      parserStats.textContent = `${parsed.length} notes, ${graphEdges.length} wiki links, ${new Set(parsed.flatMap(note => note.tags)).size} tags.`;
-      parserTags.innerHTML = Array.from(new Set(parsed.flatMap(note => note.tags))).map(tag => `<span class="tag">${tag}</span>`).join("");
-      parsedTable.innerHTML = `<tr><th>Note</th><th>Links</th><th>Tags</th></tr>` + parsed.map(note => `<tr><td>${note.title}</td><td>${note.links.join(", ") || "None"}</td><td>${note.tags.map(tag => "#" + tag).join(", ") || "None"}</td></tr>`).join("");
-      select(selected);
+    }
+
+    function visibleNotes() {
+      const q = document.querySelector("#search").value.trim().toLowerCase();
+      return notes.filter(note => (filter === "all" || note.kind === filter || note.tags.includes(filter)) && (!q || `${note.title} ${note.body} ${note.tags.join(" ")}`.toLowerCase().includes(q)));
+    }
+
+    function renderGraph() {
+      graph.innerHTML = "";
+      const pos = positions();
+      const visible = visibleNotes();
+      const ids = new Set(visible.map(note => note.id));
+      edges.filter(([a, b]) => ids.has(a) && ids.has(b)).forEach(([a, b]) => {
+        const from = pos[a], to = pos[b];
+        const x1 = from.x + 69, y1 = from.y + 38, x2 = to.x + 69, y2 = to.y + 38;
+        const dx = x2 - x1, dy = y2 - y1;
+        const line = document.createElement("div");
+        line.className = `edge ${a === selected || b === selected ? "hot" : ""}`;
+        line.style.left = `${x1}px`;
+        line.style.top = `${y1}px`;
+        line.style.width = `${Math.hypot(dx, dy)}px`;
+        line.style.transform = `rotate(${Math.atan2(dy, dx)}rad)`;
+        graph.appendChild(line);
+      });
+      visible.forEach(note => {
+        const p = pos[note.id];
+        const button = document.createElement("button");
+        button.className = `node ${note.kind}${note.id === selected ? " selected" : ""}`;
+        button.style.left = `${p.x}px`;
+        button.style.top = `${p.y}px`;
+        button.innerHTML = `<strong>${note.title}</strong><span>${note.kind} · ${degree(note.id)} links</span>`;
+        button.onclick = () => select(note.id);
+        graph.appendChild(button);
+      });
+    }
+
+    function degree(id) {
+      return edges.filter(([a,b]) => a === id || b === id).length;
+    }
+
+    function select(id) {
+      const note = notes.find(item => item.id === id);
+      if (!note) return;
+      selected = id;
+      document.querySelector("#inspectTitle").textContent = note.title;
+      document.querySelector("#inspectSummary").textContent = note.body.replace(/\[\[|\]\]|#[a-z0-9_-]+/gi, "").replace(/\s+/g, " ").trim();
+      document.querySelector("#inspectMeta").innerHTML = note.tags.map(tag => `<span class="tag">#${tag}</span>`).join("") + `<p class="mono">kind: ${note.kind}<br>degree: ${degree(id)}</p>`;
+      routeLog.textContent = routeFor(note).join("\n");
+      renderGraph();
+    }
+
+    function routeFor(note) {
+      const out = [`selected: ${note.title}`, `kind: ${note.kind}`, `links out: ${note.links.join(", ") || "none"}`];
+      if (note.kind === "guard") out.push("status: review required before execution");
+      if (note.kind === "tool") out.push("status: automatic if input is sample/public");
+      if (note.kind === "agent") out.push("status: can draft, route, or summarize");
+      return out;
+    }
+
+    function renderTables() {
+      document.querySelector("#noteTable").innerHTML = `<tr><th>Note</th><th>Kind</th><th>Links</th><th>Tags</th></tr>` + notes.map(note => `<tr><td>${note.title}</td><td>${note.kind}</td><td>${note.links.join(", ") || "None"}</td><td>${note.tags.map(tag => "#" + tag).join(", ")}</td></tr>`).join("");
+      document.querySelector("#queueBoard").innerHTML = ["triage","ready","running","review","done"].map(lane => `<div class="lane"><h3>${lane}</h3>${tickets(lane)}</div>`).join("");
+    }
+
+    function tickets(lane) {
+      const map = {
+        triage: notes.filter(note => note.tags.includes("capture") || note.tags.includes("hub")),
+        ready: notes.filter(note => note.kind === "tool"),
+        running: notes.filter(note => note.tags.includes("agent")).slice(0, 3),
+        review: notes.filter(note => note.kind === "guard"),
+        done: notes.filter(note => note.tags.includes("privacy") || note.tags.includes("audit"))
+      };
+      return (map[lane] || []).map(note => `<div class="ticket"><strong>${note.title}</strong><span class="muted">${note.kind} · ${degree(note.id)} links</span></div>`).join("");
+    }
+
+    function renderFilters() {
+      const filters = ["all", "hub", "agent", "tool", "guard", ...uniqueTags().slice(0, 10)];
+      document.querySelector("#filters").innerHTML = filters.map(name => `<button class="pill ${name === filter ? "active" : ""}" data-filter="${name}">${name}</button>`).join("");
+      document.querySelectorAll("[data-filter]").forEach(btn => btn.onclick = () => { filter = btn.dataset.filter; renderEverything(false); });
+    }
+
+    function renderStats() {
+      document.querySelector("#statNotes").textContent = notes.length;
+      document.querySelector("#statLinks").textContent = edges.length;
+      document.querySelector("#statTags").textContent = uniqueTags().length;
+      document.querySelector("#statLayout").textContent = layout;
+      document.querySelector("#overviewNotes").textContent = notes.length;
+    }
+
+    function renderEverything(rebuildFilters = true) {
+      if (rebuildFilters) renderFilters();
+      renderStats();
+      renderGraph();
+      renderTables();
+      if (selected) select(selected);
+    }
+
+    function writeLog(line) {
+      const stamp = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+      log.textContent = `[${stamp}] ${line}\n` + log.textContent;
     }
 
     document.querySelectorAll("[data-view]").forEach(button => {
@@ -452,22 +433,23 @@ Defines what can run automatically and what must stop for human approval.`;
         document.querySelectorAll(".view").forEach(view => view.classList.toggle("active", view.id === button.dataset.view));
       };
     });
-    document.querySelectorAll("[data-filter]").forEach(button => {
-      button.onclick = () => {
-        filter = button.dataset.filter;
-        document.querySelectorAll("[data-filter]").forEach(next => next.classList.toggle("active", next === button));
-        renderGraph();
-      };
-    });
-    document.querySelector("#agentGrid").innerHTML = agents.map(([name, body]) => `<div class="card"><h3>${name}</h3><p>${body}</p></div>`).join("");
-    sampleVault.value = sampleVaultSeed;
-    document.querySelector("#parseVault").onclick = () => parseVault(sampleVault.value);
-    document.querySelector("#resetVault").onclick = () => {
-      sampleVault.value = sampleVaultSeed;
-      parseVault(sampleVault.value);
+    document.querySelector("#parseVault").onclick = () => parseVault(vaultInput.value);
+    document.querySelector("#resetVault").onclick = () => { vaultInput.value = sampleSeed; parseVault(vaultInput.value); };
+    document.querySelector("#addSample").onclick = () => {
+      vaultInput.value += `\n\n--- note: New Experiment ---\n#tool #prototype\nA new sample feature connected to [[Graph Viewer]] and [[Approval Queue]].`;
+      parseVault(vaultInput.value);
     };
-    search.oninput = renderGraph;
-    parseVault(sampleVault.value);
+    document.querySelector("#layoutCluster").onclick = () => { layout = "cluster"; renderEverything(false); };
+    document.querySelector("#layoutRing").onclick = () => { layout = "ring"; renderEverything(false); };
+    document.querySelector("#layoutColumns").onclick = () => { layout = "columns"; renderEverything(false); };
+    document.querySelector("#search").oninput = () => renderGraph();
+    document.querySelector("#exportJson").onclick = async () => {
+      const payload = JSON.stringify({ notes, edges, exportedAt: new Date().toISOString() }, null, 2);
+      try { await navigator.clipboard.writeText(payload); writeLog("exported JSON to clipboard"); }
+      catch { writeLog("export ready; clipboard blocked by browser"); }
+    };
+    vaultInput.value = sampleSeed;
+    parseVault(sampleSeed);
   </script>
 </body>
 </html>
