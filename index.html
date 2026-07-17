@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Public Vault Graph Demo</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      --bg: #070909;
+      --panel: #101414;
+      --line: #24302d;
+      --text: #e8ece9;
+      --muted: #8b9691;
+      --accent: #72c7aa;
+      --gold: #e7c66f;
+      --blue: #7ba8ed;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; background: var(--bg); color: var(--text); }
+    .app { display: grid; grid-template-columns: 260px minmax(0, 1fr) 320px; min-height: 100vh; }
+    aside, main { padding: 18px; }
+    aside { background: var(--panel); border-right: 1px solid var(--line); }
+    .details { border-right: 0; border-left: 1px solid var(--line); }
+    h1, h2, p { margin: 0; }
+    h1 { font-size: 18px; color: var(--gold); }
+    h2 { font-size: 14px; margin-bottom: 10px; }
+    p { color: var(--muted); line-height: 1.5; }
+    input, button {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #0b0f0f;
+      color: var(--text);
+      font: inherit;
+    }
+    input { margin: 18px 0 12px; padding: 10px 12px; }
+    button { margin: 5px 0; padding: 9px 10px; text-align: left; cursor: pointer; }
+    button.active { border-color: var(--accent); color: var(--accent); }
+    .graph {
+      position: relative;
+      min-height: 100vh;
+      overflow: hidden;
+      background:
+        linear-gradient(var(--line) 1px, transparent 1px),
+        linear-gradient(90deg, var(--line) 1px, transparent 1px);
+      background-size: 46px 46px;
+    }
+    .node {
+      position: absolute;
+      width: 120px;
+      min-height: 66px;
+      padding: 10px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #101615;
+      box-shadow: 0 12px 30px rgb(0 0 0 / 24%);
+      cursor: pointer;
+    }
+    .node strong { display: block; font-size: 12px; margin-bottom: 5px; }
+    .node span { color: var(--muted); font-size: 11px; }
+    .node.agent { border-color: var(--blue); }
+    .node.project { border-color: var(--accent); }
+    .node.hub { border-color: var(--gold); }
+    .node.selected { outline: 2px solid white; }
+    .meta { margin-top: 16px; display: grid; gap: 10px; }
+    .tag { display: inline-block; margin: 0 6px 6px 0; padding: 4px 7px; border: 1px solid var(--line); border-radius: 999px; color: var(--muted); font-size: 11px; }
+    @media (max-width: 880px) {
+      .app { grid-template-columns: 1fr; }
+      aside, .details { border: 0; border-bottom: 1px solid var(--line); }
+      .graph { min-height: 520px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside>
+      <h1>Vault Graph</h1>
+      <p>Public-safe sample of a knowledge vault and AI-agent workspace.</p>
+      <input id="search" placeholder="Search nodes">
+      <button class="active" data-filter="all">All</button>
+      <button data-filter="hub">Hubs</button>
+      <button data-filter="agent">Agents</button>
+      <button data-filter="project">Projects</button>
+    </aside>
+    <main class="graph" id="graph" aria-label="Interactive vault graph"></main>
+    <aside class="details">
+      <h2 id="title">Select a node</h2>
+      <p id="summary">Click anything in the graph to inspect it.</p>
+      <div class="meta" id="meta"></div>
+    </aside>
+  </div>
+  <script>
+    const items = [
+      { id: "home", type: "hub", title: "Vault Home", x: 48, y: 52, summary: "Top-level index for durable notes, projects, and agents.", tags: ["index", "memory"] },
+      { id: "routing", type: "hub", title: "Fleet Routing", x: 270, y: 142, summary: "Rules for sending tasks to the right specialized agent.", tags: ["workflow", "routing"] },
+      { id: "research", type: "agent", title: "Research Agent", x: 150, y: 310, summary: "Collects sources, summarizes findings, and flags unknowns.", tags: ["research", "sources"] },
+      { id: "builder", type: "agent", title: "Builder Agent", x: 430, y: 284, summary: "Turns specs into small working prototypes.", tags: ["code", "prototype"] },
+      { id: "graph", type: "project", title: "Graph Demo", x: 590, y: 120, summary: "Interactive browser view for navigating vault structure.", tags: ["frontend", "visualization"] },
+      { id: "cleanup", type: "project", title: "Auto Sort Tool", x: 360, y: 470, summary: "Draft spec for organizing loose notes into stable folders.", tags: ["automation", "notes"] }
+    ];
+
+    const graph = document.querySelector("#graph");
+    const title = document.querySelector("#title");
+    const summary = document.querySelector("#summary");
+    const meta = document.querySelector("#meta");
+    const search = document.querySelector("#search");
+    let filter = "all";
+    let selected = items[0].id;
+
+    function render() {
+      const query = search.value.trim().toLowerCase();
+      graph.innerHTML = "";
+      items
+        .filter(item => filter === "all" || item.type === filter)
+        .filter(item => !query || `${item.title} ${item.summary} ${item.tags.join(" ")}`.toLowerCase().includes(query))
+        .forEach(item => {
+          const node = document.createElement("button");
+          node.className = `node ${item.type}${selected === item.id ? " selected" : ""}`;
+          node.style.left = `${item.x}px`;
+          node.style.top = `${item.y}px`;
+          node.innerHTML = `<strong>${item.title}</strong><span>${item.type}</span>`;
+          node.onclick = () => select(item.id);
+          graph.appendChild(node);
+        });
+    }
+
+    function select(id) {
+      const item = items.find(next => next.id === id);
+      selected = id;
+      title.textContent = item.title;
+      summary.textContent = item.summary;
+      meta.innerHTML = `<div>${item.tags.map(tag => `<span class="tag">${tag}</span>`).join("")}</div><p>Type: ${item.type}</p>`;
+      render();
+    }
+
+    document.querySelectorAll("[data-filter]").forEach(button => {
+      button.onclick = () => {
+        filter = button.dataset.filter;
+        document.querySelectorAll("[data-filter]").forEach(next => next.classList.toggle("active", next === button));
+        render();
+      };
+    });
+    search.oninput = render;
+    select(selected);
+  </script>
+</body>
+</html>
+
