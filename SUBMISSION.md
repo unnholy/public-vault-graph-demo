@@ -1,25 +1,25 @@
 # Devlog Draft
 
-I rebuilt my project into a public-safe dashboard for a private AI-agent / knowledge-vault system.
+I rebuilt this into **Atlas Fleet**, a public-safe vault graph workbench for AI-agent systems.
 
-The hard part was not just making a graph. The hard part was showing the architecture of a real private setup without leaking personal notes, credentials, server details, school/health records, or private agent prompts. So I made a sanitized dashboard that keeps the useful structure and replaces private content with representative sample data.
+The project parses markdown-style notes, extracts `[[wiki links]]` and `#tags`, and turns them into an interactive graph. The point is to show how a private second-brain / agent-fleet setup can be mapped without exposing the private vault itself.
 
-What it includes:
+What I built:
 
-- Interactive graph generated from sample markdown notes
-- Built-in parser for `[[wiki links]]` and `#tags`
+- Markdown note parser
+- Wiki-link graph generator
+- Tag-based graph filters
 - Clickable node inspector
-- Search and graph filters
-- Agent role roster
-- Task routing pipeline
-- Approval-band safety model
-- Static single-file HTML app
+- Cluster, ring, and column graph layouts
+- Search across notes, links, and tags
+- Approval-style task queue generated from parsed notes
+- JSON export
+- Static single-file app with no backend
 
-The dashboard models how a private second-brain system can route work between different AI agents: a front-door agent receives tasks, a command agent decomposes work, specialists handle research/security/building, and sensitive actions pass through approval gates.
+The privacy part matters: the real system this is inspired by has private notes and workflows, so the public version uses synthetic sample notes only. It shows the architecture without leaking personal data, credentials, server details, or private prompts.
 
-The newest feature is the parser tab: it takes bundled sample markdown notes, extracts links and tags, shows the parsed table, then rebuilds the graph from that data. That makes the demo closer to the real idea: a vault graph should come from notes, not just hardcoded boxes.
-
-I also added the privacy layer intentionally. The public app shows the system design, but it does not expose the actual private vault or any personal data.
+The hardest part was turning the idea from “a pretty graph” into something closer to a real tool. The graph is now data-driven: edit the sample vault, click **Parse vault**, and the graph, filters, table, stats, inspector, and queue all update from the parsed notes.
 
 Repo: https://github.com/unnholy/public-vault-graph-demo
 Live preview: https://raw.githack.com/unnholy/public-vault-graph-demo/main/index.html
+
