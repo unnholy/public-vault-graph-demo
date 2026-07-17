@@ -121,6 +121,28 @@
     .pipeline { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
     .step { min-height: 120px; padding: 12px; border: 1px solid var(--line); border-radius: 8px; background: #0f1514; }
     .step strong { display: block; margin-bottom: 8px; color: var(--gold); }
+    textarea {
+      width: 100%;
+      min-height: 260px;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #070a0a;
+      color: var(--text);
+      font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      resize: vertical;
+    }
+    .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+    .actions button {
+      width: auto;
+      padding: 9px 11px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #0f1514;
+      color: var(--text);
+      cursor: pointer;
+    }
+    .actions button.primary { border-color: var(--green); color: var(--green); }
     .tag { display: inline-block; margin: 0 6px 6px 0; padding: 4px 7px; border: 1px solid var(--line); border-radius: 999px; color: var(--muted); font-size: 11px; }
     .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; color: var(--green); }
     @media (max-width: 980px) {
@@ -143,6 +165,7 @@
       <nav class="nav">
         <button class="active" data-view="overview">Overview</button>
         <button data-view="graph">Vault Graph</button>
+        <button data-view="parser">Vault Parser</button>
         <button data-view="agents">Agent Fleet</button>
         <button data-view="pipeline">Routing Pipeline</button>
         <button data-view="safety">Safety Model</button>
@@ -173,6 +196,10 @@
             <p>task pipeline stages</p>
           </div>
           <div class="card">
+            <div class="metric" id="parsedMetric">0</div>
+            <p>sample notes parsed</p>
+          </div>
+          <div class="card">
             <div class="metric">0</div>
             <p>private notes exposed</p>
           </div>
@@ -198,6 +225,31 @@
 
       <section class="view" id="graph">
         <div class="graph" id="graphCanvas" aria-label="Interactive vault graph"></div>
+      </section>
+
+      <section class="view" id="parser">
+        <div class="grid">
+          <div class="card wide">
+            <h2>Sample markdown vault parser</h2>
+            <p>This reads sample notes, extracts wiki links like <span class="mono">[[Graph Viewer]]</span>, extracts tags like <span class="mono">#automation</span>, and rebuilds the graph from the parsed result.</p>
+            <textarea id="sampleVault"></textarea>
+            <div class="actions">
+              <button class="primary" id="parseVault">Parse sample vault</button>
+              <button id="resetVault">Reset sample</button>
+            </div>
+          </div>
+          <div class="card">
+            <h2>Parser output</h2>
+            <p id="parserStats">No parse run yet.</p>
+            <div id="parserTags" style="margin-top:12px"></div>
+          </div>
+          <div class="card full">
+            <h2>Parsed notes</h2>
+            <table class="table" id="parsedTable">
+              <tr><th>Note</th><th>Links</th><th>Tags</th></tr>
+            </table>
+          </div>
+        </div>
       </section>
 
       <section class="view" id="agents">
@@ -270,11 +322,49 @@
       ["Fixer", "Stuck, ownerless, or cross-domain work."],
       ["Reserved Profiles", "Future roles kept inactive until a real need exists."]
     ];
+    const sampleVaultSeed = `--- note: Vault Home ---
+#index #memory
+The top-level map for [[Fleet Routing]], [[Graph Viewer]], and [[Auto Sort]].
+
+--- note: Fleet Routing ---
+#kanban #agents
+Routes requests from [[Front Door]] to [[Command]] and specialist profiles.
+
+--- note: Front Door ---
+#inbox #daily
+Captures reminders, links, drafts, and new notes before sending them to [[Fleet Routing]].
+
+--- note: Command ---
+#dispatch #planning
+Breaks large work into [[Routing Pipeline]] tasks and checks with [[Safety Model]] before risky actions.
+
+--- note: Graph Viewer ---
+#visualization #frontend
+Reads the [[Vault Home]] map and renders clickable nodes for [[Auto Sort]] and [[Memory Curator]].
+
+--- note: Auto Sort ---
+#automation #notes
+Files inbox notes, adds backlinks to [[Vault Home]], and proposes hubs for [[Memory Curator]].
+
+--- note: Memory Curator ---
+#audit #digest
+Maintains summaries, approval logs, and cleanup notes for [[Safety Model]].
+
+--- note: Safety Model ---
+#approval #privacy
+Defines what can run automatically and what must stop for human approval.`;
+    let graphNodes = nodes;
+    let graphEdges = edges;
     const graph = document.querySelector("#graphCanvas");
     const search = document.querySelector("#search");
     const inspectTitle = document.querySelector("#inspectTitle");
     const inspectSummary = document.querySelector("#inspectSummary");
     const inspectMeta = document.querySelector("#inspectMeta");
+    const sampleVault = document.querySelector("#sampleVault");
+    const parsedTable = document.querySelector("#parsedTable");
+    const parserStats = document.querySelector("#parserStats");
+    const parserTags = document.querySelector("#parserTags");
+    const parsedMetric = document.querySelector("#parsedMetric");
     let filter = "all";
     let selected = "front";
 
@@ -285,11 +375,11 @@
 
     function renderGraph() {
       graph.innerHTML = "";
-      const visible = nodes.filter(matches);
+      const visible = graphNodes.filter(matches);
       const ids = new Set(visible.map(node => node.id));
-      edges.filter(([a,b]) => ids.has(a) && ids.has(b)).forEach(([a,b]) => {
-        const from = nodes.find(node => node.id === a);
-        const to = nodes.find(node => node.id === b);
+      graphEdges.filter(([a,b]) => ids.has(a) && ids.has(b)).forEach(([a,b]) => {
+        const from = graphNodes.find(node => node.id === a);
+        const to = graphNodes.find(node => node.id === b);
         const x1 = from.x + 64, y1 = from.y + 34, x2 = to.x + 64, y2 = to.y + 34;
         const dx = x2 - x1, dy = y2 - y1;
         const edge = document.createElement("div");
@@ -312,12 +402,48 @@
     }
 
     function select(id) {
-      const node = nodes.find(item => item.id === id);
+      const node = graphNodes.find(item => item.id === id);
+      if (!node) return;
       selected = id;
       inspectTitle.textContent = node.title;
       inspectSummary.textContent = node.summary;
       inspectMeta.innerHTML = `${node.tags.map(tag => `<span class="tag">${tag}</span>`).join("")}<p class="mono">type: ${node.type}</p>`;
       renderGraph();
+    }
+
+    function slug(text) {
+      return text.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+    }
+
+    function parseVault(text) {
+      const blocks = text.split(/\n--- note:\s*/).map(block => block.trim()).filter(Boolean);
+      const parsed = blocks.map((block, index) => {
+        const lines = block.split("\n");
+        const rawTitle = lines.shift().replace(/---$/, "").trim();
+        const body = lines.join("\n");
+        const links = Array.from(body.matchAll(/\[\[([^\]]+)\]\]/g)).map(match => match[1].trim());
+        const tags = Array.from(body.matchAll(/#([a-z0-9_-]+)/gi)).map(match => match[1].toLowerCase());
+        return { title: rawTitle, body, links, tags, index };
+      });
+      const titleToId = new Map(parsed.map(note => [note.title.toLowerCase(), slug(note.title)]));
+      const kinds = ["frontdoor", "command", "memory", "security", "research"];
+      graphNodes = parsed.map((note, index) => ({
+        id: slug(note.title),
+        type: note.tags.includes("agents") || note.tags.includes("daily") || note.tags.includes("dispatch") ? "agent" : note.tags.includes("automation") || note.tags.includes("frontend") ? "tool" : "hub",
+        kind: kinds[index % kinds.length],
+        title: note.title,
+        x: 60 + (index % 4) * 190,
+        y: 60 + Math.floor(index / 4) * 190,
+        summary: note.body.replace(/\[\[|\]\]|#[a-z0-9_-]+/gi, "").replace(/\s+/g, " ").trim().slice(0, 150) || "Parsed sample note.",
+        tags: note.tags.length ? note.tags : ["sample"]
+      }));
+      graphEdges = parsed.flatMap(note => note.links.map(link => [slug(note.title), titleToId.get(link.toLowerCase())]).filter(edge => edge[1]));
+      selected = graphNodes[0]?.id || "";
+      parsedMetric.textContent = String(parsed.length);
+      parserStats.textContent = `${parsed.length} notes, ${graphEdges.length} wiki links, ${new Set(parsed.flatMap(note => note.tags)).size} tags.`;
+      parserTags.innerHTML = Array.from(new Set(parsed.flatMap(note => note.tags))).map(tag => `<span class="tag">${tag}</span>`).join("");
+      parsedTable.innerHTML = `<tr><th>Note</th><th>Links</th><th>Tags</th></tr>` + parsed.map(note => `<tr><td>${note.title}</td><td>${note.links.join(", ") || "None"}</td><td>${note.tags.map(tag => "#" + tag).join(", ") || "None"}</td></tr>`).join("");
+      select(selected);
     }
 
     document.querySelectorAll("[data-view]").forEach(button => {
@@ -334,8 +460,14 @@
       };
     });
     document.querySelector("#agentGrid").innerHTML = agents.map(([name, body]) => `<div class="card"><h3>${name}</h3><p>${body}</p></div>`).join("");
+    sampleVault.value = sampleVaultSeed;
+    document.querySelector("#parseVault").onclick = () => parseVault(sampleVault.value);
+    document.querySelector("#resetVault").onclick = () => {
+      sampleVault.value = sampleVaultSeed;
+      parseVault(sampleVault.value);
+    };
     search.oninput = renderGraph;
-    select(selected);
+    parseVault(sampleVault.value);
   </script>
 </body>
 </html>
